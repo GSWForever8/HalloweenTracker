@@ -18,7 +18,7 @@ struct HalloweenTrackerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView().environmentObject(auth)
+            ContentView().environmentObject(auth).modelContainer(for: [TrackerDevice.self], inMemory: true)
         }
     }
 }

@@ -13,7 +13,6 @@ class AuthManager: ObservableObject {
     // Published property to trigger UI updates
     @Published var isUserAuthenticated = false
     @Published var userID: String = ""
-    
     init() {
         if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
             self.userID = "preview-user-id"

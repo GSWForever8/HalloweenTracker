@@ -12,11 +12,3 @@ struct User: Codable{
     var email: String
 }
 
-struct HealthData: Codable{
-    var id: String?
-    var userId: String
-    var type: String
-    var date: Date
-    var steps: Int?
-    var calories: Int?
-}

@@ -14,11 +14,7 @@ struct ContentView: View {
     @EnvironmentObject var auth:AuthManager
     var body: some View {
         if(auth.isUserAuthenticated){
-            TabView{
-                Tab("Profile",systemImage:"person.fill"){
-                    ProfileView()
-                }
-            }
+            ProfileView()
         } else {
             LoginView()
         }

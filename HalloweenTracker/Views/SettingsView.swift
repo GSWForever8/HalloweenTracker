@@ -23,7 +23,6 @@ struct SettingsView:View{
             .padding(.horizontal, 24)
             List{
                 Section("Account Settings"){
-                    Button("Delete Data") {deleteUserClick()}
                 }
                 Section {
                     Button(action: logoutUser) {
@@ -31,21 +30,6 @@ struct SettingsView:View{
                             .frame(maxWidth: .infinity, alignment: .center)
                     }
                 }
-            }
-        }
-    }
-    
-    func deleteUserClick(){
-        Task {
-            do {
-                let res = try await deleteUser(uid: auth.userID)
-                if res {
-                    auth.logout()
-                } else {
-                    print("Failed to delete user")
-                }
-            } catch {
-                print("Error deleting user: \(error)")
             }
         }
     }
