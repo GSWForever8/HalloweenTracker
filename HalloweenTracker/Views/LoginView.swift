@@ -53,8 +53,7 @@ struct LoginView: View {
                 .cornerRadius(10)
                 Spacer()
             }
-            
-            }
+        }
     }
     func authClick(){
         Task {
