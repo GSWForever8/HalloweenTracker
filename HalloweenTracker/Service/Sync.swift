@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UserNotifications
 import SwiftData
 
 // MARK: - DTOs that match your Flask JSON
@@ -74,6 +75,18 @@ final class BackendClient {
         try ensureOK(resp)
     }
 }
+// MARK: - Notifications
+
+private func postPickupNotifyNow(name: String) {
+    let content = UNMutableNotificationContent()
+    content.title = "Pickup requested"
+    content.body = name+" is asking to be picked up."
+    let req = UNNotificationRequest(identifier: "pickup-\(UUID().uuidString)",
+                                    content: content,
+                                    trigger: nil)
+    UNUserNotificationCenter.current().add(req, withCompletionHandler: nil)
+}
+
 
 // MARK: - Helpers
 
@@ -148,8 +161,12 @@ final class SyncManager {
                 local.lastBatteryPercent = s.lastBatteryPercent
                 local.lat = s.lat
                 local.lng = s.lng
+                local.lastRSSI = s.lastRSSI
                 // pairedAt from server if we have it
                 if let pAt = parseISO(s.pairedAt) { local.pairedAt = pAt }
+                if s.lastRSSI == 0{
+                    postPickupNotifyNow(name: local.name)
+                }
             } else {
                 // insert new
                 guard let ble = UUID(uuidString: s.bleId) else { continue }
@@ -161,7 +178,7 @@ final class SyncManager {
                     minor: s.beaconMinor
                 )
                 dev.isActive = s.isActive
-                dev.lastRSSI = s.lastRSSI
+                dev.lastRSSI = 1
                 dev.lastBatteryPercent = s.lastBatteryPercent
                 if let ls = parseISO(s.lastSeenAt) { dev.lastSeenAt = ls }
                 if let pAt = parseISO(s.pairedAt) { dev.pairedAt = pAt }

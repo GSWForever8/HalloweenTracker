@@ -21,6 +21,7 @@ struct ProfileView: View {
     @State private var provisioning = false
     @State private var provisionError: String?
     @State private var reporter: ProximityReporter?
+    @State private var provisioner: BeaconProvisioner?
 
     var body: some View {
         NavigationStack {
@@ -51,6 +52,7 @@ struct ProfileView: View {
                                         .foregroundStyle(.secondary)
                                     }
                                 }
+                                .simultaneousGesture(TapGesture().onEnded { Haptics.scare() })
                             }
                             .onDelete(perform: deleteTrackers)
                         }
@@ -105,7 +107,7 @@ struct ProfileView: View {
                     // Initialize syncer once we have context + auth
                     if syncer == nil {
                         // Point this to your dev server; use LAN IP on iPhone/iPad
-                        let base = URL(string: "http://192.168.50.171:3000")!
+                        let base = URL(string: "http://192.168.86.26:3000")!
                         syncer = SyncManager(
                             context: context,
                             baseURL: base,
@@ -129,9 +131,8 @@ struct ProfileView: View {
             do {
                 // 1) Fetch major (only if needed)
                 var resolvedMajor = major
-                print(resolvedMajor)
                 if resolvedMajor == nil {
-                    let majorURL = URL(string: "http://192.168.50.171:3000/majorGivenUID/")!
+                    let majorURL = URL(string: "http://192.168.86.26:3000/majorGivenUID/")!
                     var req = URLRequest(url: majorURL)
                     req.httpMethod = "POST"
                     req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -146,12 +147,10 @@ struct ProfileView: View {
                     resolvedMajor = decoded.major
                     print("Fetched major:", decoded.major)
                 }
-                print(resolvedMajor)
                 // 2) Fetch next minor (only if needed)
                 var resolvedMinor = minor
-                print(resolvedMinor)
                 if resolvedMinor == nil {
-                    let minorURL = URL(string: "http://192.168.50.171:3000/getNextMinor/")!
+                    let minorURL = URL(string: "http://192.168.86.26:3000/getNextMinor/")!
                     var req = URLRequest(url: minorURL)
                     req.httpMethod = "POST"
                     req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -166,29 +165,40 @@ struct ProfileView: View {
                     resolvedMinor = decoded.nextMinor
                     print("Fetched minor:", decoded.nextMinor)
                 }
-                print(resolvedMinor)
                 guard let finalMajor = resolvedMajor, let finalMinor = resolvedMinor else {
                     print("❌ Could not resolve major/minor")
                     return
                 }
                 // After allocation, configure the physical tracker via BLE
-                let prov = BeaconProvisioner(allocator: { (finalMajor, finalMinor) })
-                Task {
-                    await MainActor.run {
-                        provisioning = true
-                    }
-                    prov.startProvisioning(with: finalMajor, minor: finalMinor) { result in
-                        DispatchQueue.main.async {
-                            provisioning = false
-                            switch result {
-                            case .success:
-                                print("✅ Tracker BLE configured with \(finalMajor)-\(finalMinor)")
-                            case .failure(let err):
-                                print("❌ BLE provisioning failed:", err)
-                            }
-                        }
-                    }
+                // Create the BeaconProvisioner, passing an allocator closure that returns the major/minor you want
+                let prov = BeaconProvisioner(allocator: {
+                    // This runs asynchronously when the 0,0 beacon is found
+                    return (finalMajor, finalMinor)
+                })
+
+                print("Pair time baby")
+                provisioner = prov
+                provisioning = true
+                Task { @MainActor in
+                    provisioning = true
+
+                    // Start provisioning. Note: you do NOT pass major/minor here anymore.
+                    prov.startProvisioning { result in
+                                    DispatchQueue.main.async {
+                                        provisioning = false
+                                        switch result {
+                                        case .success:
+                                            print("✅ Successfully provisioned")
+                                        case .failure(let err):
+                                            print("❌ Provisioning failed:", err)
+                                        }
+                                        // release only AFTER completion
+                                        provisioner = nil
+                                    }
+                                }
                 }
+
+
 
                 // 3) Insert + save on main thread (SwiftData safety)
                 try await MainActor.run {
@@ -235,7 +245,7 @@ struct ProfileView: View {
     }
 
     private func sendDeleteToServer(major: Int, minor: Int) async {
-        guard let url = URL(string: "http://192.168.50.171:3000/deleteDevice") else {
+        guard let url = URL(string: "http://192.168.86.26:3000/deleteDevice") else {
             print("❌ Bad URL")
             return
         }

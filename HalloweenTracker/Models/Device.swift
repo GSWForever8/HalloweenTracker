@@ -35,6 +35,7 @@ final class TrackerDevice {
         self.beaconKey = "\(major)-\(minor)"
         self.lat = lat
         self.lng = lng
+        self.lastRSSI = 1
     }
     func updateBeacon(major: Int, minor: Int) {
         self.beaconMajor = major

@@ -17,14 +17,12 @@ struct TrackerView: View {
     let lat: Double?
     let lng: Double?
 
-    // initial camera
     @State private var position: MapCameraPosition
 
     init(lat: Double, lng: Double) {
         self.lat = lat
         self.lng = lng
-        print(lat)
-        print(lng)
+
         let center = CLLocationCoordinate2D(latitude: lat, longitude: lng)
         _position = State(initialValue: .region(MKCoordinateRegion(
             center: center,
@@ -33,16 +31,29 @@ struct TrackerView: View {
     }
 
     var body: some View {
-        let centerCord = CLLocationCoordinate2D(latitude: lat!, longitude: lng!)
-        Map(position: $position) {
-            // a simple marker
-            MapCircle(center: centerCord,radius:50).foregroundStyle(Color.orange.opacity(0.6))            // or: MapPin / MapCircle etc.
+        VStack(spacing: 12) {
+            let centerCoord = CLLocationCoordinate2D(latitude: lat!, longitude: lng!)
+
+            Map(position: $position) {
+                MapCircle(center: centerCoord, radius: 50)
+                    .foregroundStyle(Color.orange.opacity(0.6))
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .onAppear { recenter() }
+            .onChange(of: lat) { _, _ in recenter() }
+            .onChange(of: lng) { _, _ in recenter() }
+
+            Button {
+                openInAppleMaps()
+            } label: {
+                Label("Navigate with Apple Maps", systemImage: "arrow.triangle.turn.up.right.diamond.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.blue)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .onAppear { recenter() }
-        .onChange(of: lat) { _, _ in recenter() }   // ⟵ when lat changes
-        .onChange(of: lng) { _, _ in recenter() }
+        .padding()
     }
+
     private func recenter() {
         guard let lat, let lng else { return }
         let region = MKCoordinateRegion(
@@ -51,7 +62,19 @@ struct TrackerView: View {
         )
         withAnimation { position = .region(region) }
     }
+
+    private func openInAppleMaps() {
+        guard let lat, let lng else { return }
+        let coordinate = CLLocationCoordinate2D(latitude: lat, longitude: lng)
+        let placemark = MKPlacemark(coordinate: coordinate)
+        let mapItem = MKMapItem(placemark: placemark)
+        mapItem.name = "Tracker Location"
+        mapItem.openInMaps(launchOptions: [
+            MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving
+        ])
+    }
 }
-#Preview{
+
+#Preview {
     TrackerView(lat: 37.00, lng: -117.00)
 }
